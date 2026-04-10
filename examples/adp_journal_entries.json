@@ -1,0 +1,19 @@
+{
+  "prompt": "Process this ADP payroll register and generate journal entries by department",
+  "workflow_name": "ADP Register → Departmental Journal Entries",
+  "description": "Ingest ADP payroll export, classify columns, aggregate by department, and generate segmented GL journal entries.",
+  "estimated_employees": null,
+  "flow": [
+    {"step": "read_spreadsheet", "config": {"file_path": "examples/sample_data/adp_payroll_register.csv"}},
+    {"step": "detect_header_structure", "config": {"skip_summary_rows": true, "skip_blank_columns": true}},
+    {"step": "classify_columns", "config": {"provider_hint": "adp", "review_threshold": 0.75}},
+    {"step": "human_column_review", "config": {"review_interface": "web", "timeout_hours": 2}},
+    {"step": "normalize_rows", "config": {}},
+    {"step": "validate_payroll_data", "config": {}},
+    {"step": "aggregate_by_department", "config": {"include_employer_costs": true, "breakdown_by_pay_type": true}},
+    {"step": "aggregate_by_cost_center", "config": {"include_employer_contributions": true}},
+    {"step": "generate_journal_entries", "config": {"cost_centers": true, "accrual_basis": false}},
+    {"step": "post_to_gl", "config": {"gl_system": "quickbooks"}},
+    {"step": "send_summary", "config": {"include_breakdown": true}}
+  ]
+}

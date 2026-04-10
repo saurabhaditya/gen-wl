@@ -1,0 +1,19 @@
+{
+  "prompt": "Reconcile this month's payroll to last month and flag variances over 5%",
+  "workflow_name": "Month-over-Month Payroll Variance Analysis",
+  "description": "Compare current payroll to prior period, flag significant variances, and produce a reconciliation report for controller review.",
+  "estimated_employees": null,
+  "flow": [
+    {"step": "read_spreadsheet", "config": {}},
+    {"step": "detect_header_structure", "config": {"skip_summary_rows": true}},
+    {"step": "classify_columns", "config": {"review_threshold": 0.75}},
+    {"step": "normalize_rows", "config": {}},
+    {"step": "validate_payroll_data", "config": {}},
+    {"step": "aggregate_by_department", "config": {"breakdown_by_pay_type": true}},
+    {"step": "aggregate_by_pay_type", "config": {"include_hours": true}},
+    {"step": "variance_analysis", "config": {"variance_threshold_pct": 5.0, "variance_threshold_abs": 500.0, "flag_new_terminations": true}},
+    {"step": "reconcile_to_prior_period", "config": {"variance_threshold_pct": 5.0}},
+    {"step": "manager_review", "config": {"review_overtime_only": false, "notify_via": "email"}},
+    {"step": "send_summary", "config": {"include_breakdown": true, "format": "email"}}
+  ]
+}

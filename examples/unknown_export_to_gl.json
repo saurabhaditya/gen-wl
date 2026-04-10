@@ -1,0 +1,22 @@
+{
+  "prompt": "Map this unknown payroll export to our GL structure and create journal entries",
+  "workflow_name": "Unknown Export → GL Journal Entries",
+  "description": "Fully automated column classification, validation, and GL journal entry generation from an unrecognized payroll export.",
+  "estimated_employees": null,
+  "flow": [
+    {"step": "read_spreadsheet", "config": {}},
+    {"step": "detect_header_structure", "config": {"skip_summary_rows": true, "skip_blank_columns": true}},
+    {"step": "classify_columns", "config": {"review_threshold": 0.70}},
+    {"step": "human_column_review", "config": {"review_interface": "web", "timeout_hours": 4}},
+    {"step": "normalize_rows", "config": {}},
+    {"step": "validate_payroll_data", "config": {"strict_mode": false}},
+    {"step": "aggregate_by_department", "config": {"include_employer_costs": true}},
+    {"step": "aggregate_by_pay_type", "config": {}},
+    {"step": "aggregate_by_deduction_type", "config": {"separate_ee_er": true}},
+    {"step": "generate_journal_entries", "config": {"cost_centers": true, "accrual_basis": false}},
+    {"step": "reconcile_payroll_to_gl", "config": {}},
+    {"step": "human_approval", "config": {"timeout_hours": 24}},
+    {"step": "post_to_gl", "config": {}},
+    {"step": "archive_records", "config": {"encrypt": true, "retention_years": 7}}
+  ]
+}

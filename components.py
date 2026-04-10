@@ -629,6 +629,191 @@ register(Component(
 ))
 
 # ---------------------------------------------------------------------------
+# COLUMN CLASSIFICATION & DATA MAPPING
+# ---------------------------------------------------------------------------
+
+register(Component(
+    name="classify_columns",
+    description="Use Claude to automatically map arbitrary spreadsheet headers to canonical payroll fields. Handles ADP, Gusto, Paychex, and custom exports.",
+    category="ingestion",
+    required_inputs=["raw_rows", "column_headers"],
+    outputs=["column_mapping", "mapping_confidence_scores", "provider_detected"],
+    config_schema={
+        "review_threshold": {"type": "number", "default": 0.75, "description": "Confidence below this flags column for human review"},
+        "auto_accept_threshold": {"type": "number", "default": 0.90, "description": "Confidence above this auto-accepts mapping"},
+        "provider_hint": {"type": "string", "description": "Optional hint: adp, gusto, paychex, quickbooks"},
+    },
+    tags=["data", "mapping", "ai"],
+))
+
+register(Component(
+    name="human_column_review",
+    description="Present low-confidence column mappings to a human for confirmation or override before proceeding.",
+    category="approval",
+    required_inputs=["column_mapping", "mapping_confidence_scores"],
+    outputs=["approved_column_mapping"],
+    config_schema={
+        "review_interface": {"type": "string", "enum": ["web", "email", "csv"], "default": "web"},
+        "timeout_hours": {"type": "integer", "default": 4},
+    },
+    tags=["human", "approval", "mapping"],
+))
+
+register(Component(
+    name="detect_header_structure",
+    description="Detect and flatten complex header structures: multi-row headers, merged cells, summary rows, notes columns.",
+    category="ingestion",
+    required_inputs=["raw_rows"],
+    outputs=["column_headers", "header_row_count", "data_start_row"],
+    config_schema={
+        "skip_summary_rows": {"type": "boolean", "default": True},
+        "skip_blank_columns": {"type": "boolean", "default": True},
+    },
+    tags=["data", "ingestion", "cleaning"],
+))
+
+# ---------------------------------------------------------------------------
+# AGGREGATION & SUMMARIZATION
+# ---------------------------------------------------------------------------
+
+register(Component(
+    name="aggregate_by_department",
+    description="Aggregate payroll totals by department: gross pay, taxes, deductions, net pay, headcount.",
+    category="aggregation",
+    required_inputs=["normalized_rows"],
+    outputs=["dept_summary", "dept_headcount"],
+    config_schema={
+        "include_employer_costs": {"type": "boolean", "default": True},
+        "breakdown_by_pay_type": {"type": "boolean", "default": True},
+        "output_format": {"type": "string", "enum": ["json", "csv"], "default": "json"},
+    },
+    tags=["aggregation", "department"],
+))
+
+register(Component(
+    name="aggregate_by_cost_center",
+    description="Aggregate payroll by cost center for cost accounting and GL allocation.",
+    category="aggregation",
+    required_inputs=["normalized_rows"],
+    outputs=["cost_center_summary"],
+    config_schema={
+        "gl_account_mapping": {"type": "object", "description": "Map cost_center -> GL account segment"},
+        "include_employer_contributions": {"type": "boolean", "default": True},
+    },
+    tags=["aggregation", "cost_center", "accounting"],
+))
+
+register(Component(
+    name="aggregate_by_pay_type",
+    description="Summarize payroll by pay type: regular, overtime, double-time, bonus, commission, PTO, sick, holiday.",
+    category="aggregation",
+    required_inputs=["normalized_rows"],
+    outputs=["pay_type_summary"],
+    config_schema={
+        "include_hours": {"type": "boolean", "default": True},
+        "include_rates": {"type": "boolean", "default": False},
+    },
+    tags=["aggregation", "pay_type"],
+))
+
+register(Component(
+    name="aggregate_by_tax_jurisdiction",
+    description="Summarize taxes and wages by jurisdiction: federal, each state, local. Produces per-jurisdiction totals for 941/SUTA filing.",
+    category="aggregation",
+    required_inputs=["normalized_rows", "tax_records"],
+    outputs=["jurisdiction_summary"],
+    config_schema={
+        "include_employer_taxes": {"type": "boolean", "default": True},
+        "group_by_state": {"type": "boolean", "default": True},
+        "group_by_local": {"type": "boolean", "default": False},
+    },
+    tags=["aggregation", "taxes", "jurisdiction"],
+))
+
+register(Component(
+    name="aggregate_by_deduction_type",
+    description="Summarize all deductions by type: pre-tax, post-tax, employer-paid. Breaks out 401k, health, FSA, HSA, garnishments.",
+    category="aggregation",
+    required_inputs=["normalized_rows", "deduction_records"],
+    outputs=["deduction_summary"],
+    config_schema={
+        "separate_ee_er": {"type": "boolean", "default": True, "description": "Separate employee vs employer portions"},
+    },
+    tags=["aggregation", "deductions", "benefits"],
+))
+
+register(Component(
+    name="crosstab_summary",
+    description="Generate cross-tabulation summaries (e.g., department × pay type, location × tax jurisdiction).",
+    category="aggregation",
+    required_inputs=["normalized_rows"],
+    outputs=["crosstab_report"],
+    config_schema={
+        "row_dimension": {"type": "string", "enum": ["department", "location", "cost_center", "state_code"], "default": "department"},
+        "col_dimension": {"type": "string", "enum": ["pay_type", "tax_jurisdiction", "deduction_type"], "default": "pay_type"},
+        "value_field": {"type": "string", "default": "gross_total"},
+    },
+    tags=["aggregation", "reporting", "crosstab"],
+))
+
+register(Component(
+    name="variance_analysis",
+    description="Compare current payroll to prior period and flag variances exceeding a threshold. Detects new hires, terminations, rate changes.",
+    category="aggregation",
+    required_inputs=["normalized_rows"],
+    outputs=["variance_report", "flagged_employees"],
+    config_schema={
+        "prior_period_source": {"type": "string", "description": "File path or run ID of prior period data"},
+        "variance_threshold_pct": {"type": "number", "default": 5.0, "description": "Flag if gross pay changes by more than this %"},
+        "variance_threshold_abs": {"type": "number", "default": 500.0, "description": "Flag if gross pay changes by more than this $"},
+        "flag_new_terminations": {"type": "boolean", "default": True},
+    },
+    tags=["aggregation", "validation", "reconciliation"],
+))
+
+register(Component(
+    name="reconcile_to_prior_period",
+    description="Full payroll-to-prior-period reconciliation: headcount changes, pay rate changes, hours variance, total payroll change.",
+    category="aggregation",
+    required_inputs=["normalized_rows"],
+    outputs=["reconciliation_report", "reconciliation_errors"],
+    config_schema={
+        "prior_period_file": {"type": "string"},
+        "variance_threshold_pct": {"type": "number", "default": 5.0},
+        "include_ytd_comparison": {"type": "boolean", "default": False},
+    },
+    tags=["aggregation", "reconciliation"],
+))
+
+register(Component(
+    name="reconcile_payroll_to_gl",
+    description="Reconcile payroll register totals to general ledger account balances. Identifies posting errors and missing entries.",
+    category="accounting",
+    required_inputs=["payroll_summary", "journal_entries"],
+    outputs=["gl_reconciliation_report"],
+    config_schema={
+        "gl_system": {"type": "string", "enum": ["quickbooks", "netsuite", "sap", "xero", "internal"]},
+        "accounting_period": {"type": "string", "description": "Period to reconcile (YYYY-MM)"},
+        "tolerance_amount": {"type": "number", "default": 0.01},
+    },
+    tags=["accounting", "reconciliation", "gl"],
+))
+
+register(Component(
+    name="generate_941_reconciliation",
+    description="Build a quarter-to-date 941 reconciliation worksheet: aggregate monthly payroll data, compute line items, identify deposit shortfalls.",
+    category="tax_filing",
+    required_inputs=["jurisdiction_summary", "payroll_summary"],
+    outputs=["form_941_reconciliation", "deposit_shortfall"],
+    config_schema={
+        "quarter": {"type": "string", "description": "Q1, Q2, Q3, Q4"},
+        "tax_year": {"type": "integer"},
+        "deposit_schedule": {"type": "string", "enum": ["monthly", "semiweekly"]},
+    },
+    tags=["tax_filing", "941", "reconciliation"],
+))
+
+# ---------------------------------------------------------------------------
 # ERROR HANDLING
 # ---------------------------------------------------------------------------
 

@@ -1,0 +1,18 @@
+{
+  "prompt": "Generate quarterly 941 reconciliation from monthly payroll data",
+  "workflow_name": "Quarterly 941 Reconciliation",
+  "description": "Aggregate three months of payroll, compute Form 941 line items, reconcile to tax deposits, and identify any shortfalls.",
+  "estimated_employees": null,
+  "flow": [
+    {"step": "read_spreadsheet", "config": {}},
+    {"step": "classify_columns", "config": {"review_threshold": 0.75}},
+    {"step": "normalize_rows", "config": {}},
+    {"step": "validate_payroll_data", "config": {}},
+    {"step": "aggregate_by_tax_jurisdiction", "config": {"include_employer_taxes": true, "group_by_state": true}},
+    {"step": "reconcile_payroll_taxes", "config": {"tolerance_amount": 0.01}},
+    {"step": "generate_941_reconciliation", "config": {"deposit_schedule": "monthly"}},
+    {"step": "generate_form_941", "config": {}},
+    {"step": "human_approval", "config": {"timeout_hours": 48}},
+    {"step": "send_summary", "config": {"include_breakdown": true, "format": "email"}}
+  ]
+}

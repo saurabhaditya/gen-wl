@@ -6,315 +6,662 @@
   <title>Payroll Workflow Generator</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <style>
-    .step-card { animation: fadeSlideIn 0.25s ease both; }
+    .step-card { animation: fadeSlideIn 0.22s ease both; }
     @keyframes fadeSlideIn {
-      from { opacity: 0; transform: translateY(6px); }
+      from { opacity: 0; transform: translateY(5px); }
       to   { opacity: 1; transform: translateY(0); }
     }
-    .category-ingestion    { --accent: #6366f1; }
-    .category-validation   { --accent: #f59e0b; }
-    .category-calculation  { --accent: #10b981; }
-    .category-approval     { --accent: #ec4899; }
-    .category-execution    { --accent: #3b82f6; }
-    .category-accounting   { --accent: #8b5cf6; }
-    .category-reporting    { --accent: #14b8a6; }
-    .category-error_handling { --accent: #ef4444; }
-    .step-accent { border-left: 4px solid var(--accent, #6b7280); }
-    .connector { width: 2px; height: 20px; background: #e5e7eb; margin: 0 auto; }
+    .tab-active { border-bottom: 2px solid #4f46e5; color: #4f46e5; }
+    .connector  { width: 2px; height: 16px; background: #e5e7eb; margin: 0 auto; }
     pre { white-space: pre-wrap; word-break: break-all; }
-    .streaming-cursor::after {
-      content: '▋';
-      animation: blink 1s step-end infinite;
-    }
-    @keyframes blink { 50% { opacity: 0; } }
+    .confidence-bar { transition: width 0.4s ease; }
+    .drop-zone.drag-over { border-color: #4f46e5; background: #eef2ff; }
+    .badge { font-size: 0.65rem; padding: 1px 6px; border-radius: 9999px; }
   </style>
 </head>
-<body class="bg-gray-50 min-h-screen font-sans">
+<body class="bg-gray-50 min-h-screen font-sans text-gray-800">
 
-  <!-- Header -->
-  <header class="bg-white border-b border-gray-200 sticky top-0 z-10">
-    <div class="max-w-6xl mx-auto px-6 py-4 flex items-center justify-between">
-      <div class="flex items-center gap-3">
-        <div class="w-8 h-8 bg-indigo-600 rounded-lg flex items-center justify-center">
-          <svg class="w-5 h-5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-              d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
-          </svg>
-        </div>
-        <span class="text-xl font-semibold text-gray-900">Payroll Workflow Generator</span>
+<!-- Header -->
+<header class="bg-white border-b border-gray-200 sticky top-0 z-20 shadow-sm">
+  <div class="max-w-7xl mx-auto px-6 py-3 flex items-center justify-between">
+    <div class="flex items-center gap-3">
+      <div class="w-8 h-8 bg-indigo-600 rounded-lg flex items-center justify-center">
+        <svg class="w-5 h-5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+            d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/>
+        </svg>
       </div>
-      <span class="text-sm text-gray-400">Powered by Claude</span>
+      <span class="text-lg font-semibold">Payroll Workflow Generator</span>
     </div>
-  </header>
+    <!-- Top nav tabs -->
+    <nav class="flex gap-1 text-sm font-medium">
+      <button onclick="showTab('workflow')" id="tab-workflow"
+        class="px-4 py-2 rounded-lg hover:bg-gray-100 tab-active">Workflow</button>
+      <button onclick="showTab('columns')" id="tab-columns"
+        class="px-4 py-2 rounded-lg hover:bg-gray-100 text-gray-500">Column Mapper</button>
+      <button onclick="showTab('journal')" id="tab-journal"
+        class="px-4 py-2 rounded-lg hover:bg-gray-100 text-gray-500">Journal Entries</button>
+    </nav>
+    <span class="text-xs text-gray-400">Powered by Claude</span>
+  </div>
+</header>
 
-  <main class="max-w-6xl mx-auto px-6 py-8">
-    <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
+<main class="max-w-7xl mx-auto px-6 py-6">
 
-      <!-- LEFT: Input panel -->
-      <div class="space-y-6">
+  <!-- ===== TAB: WORKFLOW GENERATOR ===== -->
+  <div id="pane-workflow">
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+
+      <!-- Left: Input -->
+      <div class="space-y-4">
         <div>
-          <h2 class="text-lg font-semibold text-gray-800 mb-1">Describe your payroll process</h2>
-          <p class="text-sm text-gray-500">Describe what you need in plain English. Claude will generate a structured workflow from our component library.</p>
+          <h2 class="text-base font-semibold mb-1">Describe your payroll process</h2>
+          <p class="text-xs text-gray-500">Describe it in plain English — Claude selects and orders the right components.</p>
         </div>
 
+        <textarea id="prompt"
+          class="w-full h-36 border border-gray-300 rounded-xl px-4 py-3 text-sm placeholder-gray-400
+                 focus:outline-none focus:ring-2 focus:ring-indigo-500 resize-none shadow-sm"
+          placeholder="e.g. Process monthly payroll for 50 employees, validate hours, calculate federal and California taxes, get manager approval, generate journal entries, post to NetSuite, and email a summary."></textarea>
+
         <div>
-          <textarea id="prompt"
-            class="w-full h-40 border border-gray-300 rounded-xl px-4 py-3 text-sm text-gray-800 placeholder-gray-400
-                   focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent resize-none shadow-sm"
-            placeholder="e.g. Process monthly payroll for 50 employees, validate hours, calculate federal and California taxes, get manager approval, generate journal entries and post to NetSuite, then send a summary to the finance team."></textarea>
+          <p class="text-xs font-medium text-gray-400 uppercase tracking-wider mb-2">Example prompts</p>
+          <div id="examples" class="space-y-1.5"></div>
         </div>
 
-        <!-- Example prompts -->
-        <div>
-          <p class="text-xs font-medium text-gray-500 uppercase tracking-wider mb-2">Example prompts</p>
-          <div id="examples" class="space-y-2"></div>
-        </div>
-
-        <button id="generateBtn"
-          class="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-medium py-3 px-6 rounded-xl
-                 transition-colors duration-150 flex items-center justify-center gap-2 shadow-sm">
+        <button id="generateBtn" onclick="generate()"
+          class="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-medium py-2.5 px-6 rounded-xl
+                 transition-colors flex items-center justify-center gap-2 shadow-sm text-sm">
           <svg id="btnIcon" class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z" />
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/>
           </svg>
           <span id="btnText">Generate Workflow</span>
         </button>
 
-        <!-- Validation panel -->
-        <div id="validationPanel" class="hidden rounded-xl border p-4 text-sm space-y-2"></div>
+        <div id="validationPanel" class="hidden rounded-xl border p-3 text-xs space-y-1"></div>
       </div>
 
-      <!-- RIGHT: Output panel -->
-      <div class="space-y-4">
+      <!-- Right: Output -->
+      <div class="space-y-3">
         <div class="flex items-center justify-between">
-          <h2 class="text-lg font-semibold text-gray-800">Generated Workflow</h2>
-          <div class="flex items-center gap-2">
-            <button id="viewFlow" onclick="setView('flow')"
-              class="view-btn px-3 py-1 rounded-lg text-sm font-medium bg-indigo-600 text-white">Flow</button>
-            <button id="viewJson" onclick="setView('json')"
-              class="view-btn px-3 py-1 rounded-lg text-sm font-medium text-gray-600 hover:bg-gray-100">JSON</button>
+          <h2 class="text-base font-semibold">Generated Workflow</h2>
+          <div class="flex gap-1">
+            <button onclick="setView('flow')" id="viewFlow"
+              class="view-btn px-3 py-1 rounded-lg text-xs font-medium bg-indigo-600 text-white">Flow</button>
+            <button onclick="setView('json')" id="viewJson"
+              class="view-btn px-3 py-1 rounded-lg text-xs font-medium text-gray-500 hover:bg-gray-100">JSON</button>
           </div>
         </div>
 
-        <!-- Empty state -->
-        <div id="emptyState" class="border-2 border-dashed border-gray-200 rounded-xl h-96 flex flex-col items-center justify-center text-gray-400 gap-3">
-          <svg class="w-10 h-10 opacity-40" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+        <div id="emptyState"
+          class="border-2 border-dashed border-gray-200 rounded-xl h-80 flex flex-col items-center justify-center text-gray-400 gap-3">
+          <svg class="w-8 h-8 opacity-40" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"
-              d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
+              d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"/>
           </svg>
           <p class="text-sm">Your workflow will appear here</p>
+          <p class="text-xs">Press ⌘+Enter to generate</p>
         </div>
 
-        <!-- Flow view -->
-        <div id="flowView" class="hidden space-y-1 max-h-[600px] overflow-y-auto pr-1">
-          <div id="workflowMeta" class="mb-4 p-4 bg-white rounded-xl border border-gray-200 shadow-sm"></div>
+        <div id="flowView" class="hidden space-y-0.5 max-h-[560px] overflow-y-auto pr-1">
+          <div id="workflowMeta" class="mb-3 p-3 bg-white rounded-xl border border-gray-200 shadow-sm text-sm"></div>
           <div id="flowSteps"></div>
         </div>
 
-        <!-- JSON view -->
-        <div id="jsonView" class="hidden">
-          <div class="relative">
-            <button onclick="copyJson()"
-              class="absolute top-3 right-3 text-xs text-gray-400 hover:text-gray-600 bg-white border border-gray-200 rounded-lg px-2 py-1">
-              Copy
-            </button>
-            <pre id="jsonOutput"
-              class="bg-gray-900 text-green-400 text-xs rounded-xl p-4 overflow-auto max-h-[600px] leading-relaxed"></pre>
+        <div id="jsonView" class="hidden relative">
+          <button onclick="copyJson()"
+            class="absolute top-2 right-2 text-xs text-gray-400 hover:text-gray-600 bg-white border border-gray-200 rounded px-2 py-1 z-10">
+            Copy
+          </button>
+          <pre id="jsonOutput" class="bg-gray-900 text-green-400 text-xs rounded-xl p-4 overflow-auto max-h-[560px] leading-relaxed"></pre>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== TAB: COLUMN MAPPER ===== -->
+  <div id="pane-columns" class="hidden">
+    <div class="grid grid-cols-1 lg:grid-cols-5 gap-6">
+
+      <!-- Left: Upload -->
+      <div class="lg:col-span-2 space-y-4">
+        <div>
+          <h2 class="text-base font-semibold mb-1">Column Mapper</h2>
+          <p class="text-xs text-gray-500">Upload any payroll CSV/Excel. Claude maps headers to canonical fields.</p>
+        </div>
+
+        <!-- Drop zone -->
+        <div id="dropZone"
+          class="drop-zone border-2 border-dashed border-gray-300 rounded-xl p-6 text-center cursor-pointer hover:border-indigo-400 transition-colors"
+          onclick="document.getElementById('fileInput').click()"
+          ondragover="event.preventDefault();this.classList.add('drag-over')"
+          ondragleave="this.classList.remove('drag-over')"
+          ondrop="handleDrop(event)">
+          <svg class="w-8 h-8 mx-auto text-gray-400 mb-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"
+              d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"/>
+          </svg>
+          <p class="text-sm text-gray-600 font-medium">Drop file here or click to upload</p>
+          <p class="text-xs text-gray-400 mt-1">CSV, XLSX — up to 10 MB</p>
+          <input id="fileInput" type="file" accept=".csv,.xlsx,.xls" class="hidden" onchange="handleFileSelect(event)"/>
+        </div>
+
+        <div class="flex items-center gap-2 text-xs text-gray-400">
+          <div class="flex-1 h-px bg-gray-200"></div>or<div class="flex-1 h-px bg-gray-200"></div>
+        </div>
+
+        <div>
+          <p class="text-xs font-medium text-gray-500 mb-2">Try with sample file</p>
+          <div id="sampleFiles" class="space-y-1.5"></div>
+        </div>
+
+        <div>
+          <label class="text-xs font-medium text-gray-500">Provider hint (optional)</label>
+          <select id="providerHint" class="mt-1 w-full text-sm border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-indigo-500 focus:outline-none">
+            <option value="">Auto-detect</option>
+            <option value="adp">ADP</option>
+            <option value="gusto">Gusto</option>
+            <option value="paychex">Paychex</option>
+            <option value="quickbooks">QuickBooks</option>
+          </select>
+        </div>
+
+        <button id="classifyDemoBtn" onclick="loadColumnDemo()"
+          class="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-medium py-2.5 rounded-xl text-sm flex items-center justify-center gap-2">
+          <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.347.347a3.75 3.75 0 01-5.303 0l-.346-.346a5 5 0 010-7.072z"/>
+          </svg>
+          Run Demo (ADP headers)
+        </button>
+      </div>
+
+      <!-- Right: Mapping results -->
+      <div class="lg:col-span-3 space-y-3">
+        <div id="mappingEmpty" class="border-2 border-dashed border-gray-200 rounded-xl h-64 flex items-center justify-center text-gray-400">
+          <p class="text-sm">Upload a file to see column mappings</p>
+        </div>
+        <div id="mappingResults" class="hidden space-y-3">
+          <div id="mappingMeta" class="flex items-center gap-4 text-xs text-gray-500 bg-white border border-gray-200 rounded-xl p-3"></div>
+          <div class="overflow-y-auto max-h-[500px] border border-gray-200 rounded-xl">
+            <table class="w-full text-xs">
+              <thead class="bg-gray-50 text-gray-500 uppercase tracking-wider sticky top-0">
+                <tr>
+                  <th class="px-3 py-2 text-left">Source Column</th>
+                  <th class="px-3 py-2 text-left">Canonical Field</th>
+                  <th class="px-3 py-2 text-left">Category</th>
+                  <th class="px-3 py-2 text-center">Confidence</th>
+                  <th class="px-3 py-2 text-left">Override</th>
+                </tr>
+              </thead>
+              <tbody id="mappingTable" class="divide-y divide-gray-100"></tbody>
+            </table>
           </div>
         </div>
       </div>
     </div>
-  </main>
+  </div>
 
-  <script>
-    let currentView = 'flow';
-    let currentWorkflow = null;
+  <!-- ===== TAB: JOURNAL ENTRIES ===== -->
+  <div id="pane-journal" class="hidden">
+    <div class="space-y-4">
 
-    const CATEGORY_COLORS = {
-      ingestion:     { bg: 'bg-indigo-50',   border: 'border-indigo-200', text: 'text-indigo-700',  dot: 'bg-indigo-500'  },
-      validation:    { bg: 'bg-amber-50',    border: 'border-amber-200',  text: 'text-amber-700',   dot: 'bg-amber-500'   },
-      calculation:   { bg: 'bg-emerald-50',  border: 'border-emerald-200',text: 'text-emerald-700', dot: 'bg-emerald-500' },
-      approval:      { bg: 'bg-pink-50',     border: 'border-pink-200',   text: 'text-pink-700',    dot: 'bg-pink-500'    },
-      execution:     { bg: 'bg-blue-50',     border: 'border-blue-200',   text: 'text-blue-700',    dot: 'bg-blue-500'    },
-      accounting:    { bg: 'bg-purple-50',   border: 'border-purple-200', text: 'text-purple-700',  dot: 'bg-purple-500'  },
-      reporting:     { bg: 'bg-teal-50',     border: 'border-teal-200',   text: 'text-teal-700',    dot: 'bg-teal-500'    },
-      error_handling:{ bg: 'bg-red-50',      border: 'border-red-200',    text: 'text-red-700',     dot: 'bg-red-500'     },
-    };
+      <div class="flex items-center justify-between">
+        <div>
+          <h2 class="text-base font-semibold">Journal Entries</h2>
+          <p class="text-xs text-gray-500">Double-entry accounting journal entries from payroll data.</p>
+        </div>
+        <div class="flex gap-2">
+          <button onclick="loadJournalDemo()"
+            class="text-sm bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-lg font-medium flex items-center gap-1.5">
+            Load Demo
+          </button>
+          <a href="/api/journal-entries/download?format=generic"
+            class="text-sm bg-white border border-gray-300 hover:bg-gray-50 px-4 py-2 rounded-lg font-medium flex items-center gap-1.5">
+            ↓ CSV
+          </a>
+          <a href="/api/journal-entries/download?format=xero"
+            class="text-sm bg-white border border-gray-300 hover:bg-gray-50 px-4 py-2 rounded-lg font-medium flex items-center gap-1.5">
+            ↓ Xero CSV
+          </a>
+        </div>
+      </div>
 
-    function setView(view) {
-      currentView = view;
-      document.getElementById('flowView').classList.toggle('hidden', view !== 'flow');
-      document.getElementById('jsonView').classList.toggle('hidden', view !== 'json');
-      document.getElementById('viewFlow').className = view === 'flow'
-        ? 'view-btn px-3 py-1 rounded-lg text-sm font-medium bg-indigo-600 text-white'
-        : 'view-btn px-3 py-1 rounded-lg text-sm font-medium text-gray-600 hover:bg-gray-100';
-      document.getElementById('viewJson').className = view === 'json'
-        ? 'view-btn px-3 py-1 rounded-lg text-sm font-medium bg-indigo-600 text-white'
-        : 'view-btn px-3 py-1 rounded-lg text-sm font-medium text-gray-600 hover:bg-gray-100';
-    }
+      <div id="jeEmpty" class="border-2 border-dashed border-gray-200 rounded-xl h-48 flex items-center justify-center text-gray-400">
+        <p class="text-sm">Click "Load Demo" to see sample journal entries</p>
+      </div>
 
-    function copyJson() {
-      if (!currentWorkflow) return;
-      navigator.clipboard.writeText(JSON.stringify(currentWorkflow, null, 2));
-    }
+      <div id="jeResults" class="hidden space-y-4"></div>
+    </div>
+  </div>
 
-    function renderWorkflow(workflow, validation) {
-      currentWorkflow = workflow;
+</main>
 
-      // Meta
-      const meta = document.getElementById('workflowMeta');
-      meta.innerHTML = `
-        <div class="flex items-start justify-between gap-4">
-          <div>
-            <h3 class="font-semibold text-gray-900">${escHtml(workflow.workflow_name || 'Untitled Workflow')}</h3>
-            <p class="text-sm text-gray-500 mt-0.5">${escHtml(workflow.description || '')}</p>
+<script>
+// ===========================================================================
+// State
+// ===========================================================================
+let currentView = 'flow';
+let currentWorkflow = null;
+let canonicalFields = {};
+
+const CATEGORY_COLORS = {
+  ingestion:     { bg: 'bg-indigo-50',  border: 'border-indigo-200', text: 'text-indigo-700',  dot: 'bg-indigo-500'  },
+  validation:    { bg: 'bg-amber-50',   border: 'border-amber-200',  text: 'text-amber-700',   dot: 'bg-amber-500'   },
+  calculation:   { bg: 'bg-emerald-50', border: 'border-emerald-200',text: 'text-emerald-700', dot: 'bg-emerald-500' },
+  approval:      { bg: 'bg-pink-50',    border: 'border-pink-200',   text: 'text-pink-700',    dot: 'bg-pink-500'    },
+  execution:     { bg: 'bg-blue-50',    border: 'border-blue-200',   text: 'text-blue-700',    dot: 'bg-blue-500'    },
+  accounting:    { bg: 'bg-purple-50',  border: 'border-purple-200', text: 'text-purple-700',  dot: 'bg-purple-500'  },
+  reporting:     { bg: 'bg-teal-50',    border: 'border-teal-200',   text: 'text-teal-700',    dot: 'bg-teal-500'    },
+  error_handling:{ bg: 'bg-red-50',     border: 'border-red-200',    text: 'text-red-700',     dot: 'bg-red-500'     },
+  aggregation:   { bg: 'bg-orange-50',  border: 'border-orange-200', text: 'text-orange-700',  dot: 'bg-orange-500'  },
+  tax_filing:    { bg: 'bg-cyan-50',    border: 'border-cyan-200',   text: 'text-cyan-700',    dot: 'bg-cyan-500'    },
+};
+
+const ENTRY_TYPE_COLORS = {
+  payroll:      { bg: 'bg-indigo-50', text: 'text-indigo-700', border: 'border-indigo-200' },
+  accrual:      { bg: 'bg-amber-50',  text: 'text-amber-700',  border: 'border-amber-200'  },
+  reversal:     { bg: 'bg-pink-50',   text: 'text-pink-700',   border: 'border-pink-200'   },
+  tax_deposit:  { bg: 'bg-emerald-50',text: 'text-emerald-700',border: 'border-emerald-200'},
+  benefits:     { bg: 'bg-purple-50', text: 'text-purple-700', border: 'border-purple-200' },
+};
+
+// ===========================================================================
+// Tab navigation
+// ===========================================================================
+function showTab(tab) {
+  ['workflow','columns','journal'].forEach(t => {
+    document.getElementById(`pane-${t}`).classList.add('hidden');
+    const btn = document.getElementById(`tab-${t}`);
+    btn.classList.remove('tab-active');
+    btn.classList.add('text-gray-500');
+  });
+  document.getElementById(`pane-${tab}`).classList.remove('hidden');
+  const active = document.getElementById(`tab-${tab}`);
+  active.classList.add('tab-active');
+  active.classList.remove('text-gray-500');
+}
+
+// ===========================================================================
+// Workflow generator
+// ===========================================================================
+function setView(view) {
+  currentView = view;
+  document.getElementById('flowView').classList.toggle('hidden', view !== 'flow');
+  document.getElementById('jsonView').classList.toggle('hidden', view !== 'json');
+  ['flow','json'].forEach(v => {
+    const btn = document.getElementById(`view${v.charAt(0).toUpperCase()+v.slice(1)}`);
+    btn.className = view === v
+      ? 'view-btn px-3 py-1 rounded-lg text-xs font-medium bg-indigo-600 text-white'
+      : 'view-btn px-3 py-1 rounded-lg text-xs font-medium text-gray-500 hover:bg-gray-100';
+  });
+}
+
+function copyJson() {
+  if (currentWorkflow) navigator.clipboard.writeText(JSON.stringify(currentWorkflow, null, 2));
+}
+
+function setLoading(loading) {
+  const btn = document.getElementById('generateBtn');
+  const icon = document.getElementById('btnIcon');
+  const text = document.getElementById('btnText');
+  btn.disabled = loading;
+  btn.classList.toggle('opacity-70', loading);
+  btn.classList.toggle('cursor-not-allowed', loading);
+  icon.innerHTML = loading
+    ? '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>'
+    : '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/>';
+  text.textContent = loading ? 'Generating…' : 'Generate Workflow';
+}
+
+async function generate() {
+  const prompt = document.getElementById('prompt').value.trim();
+  if (!prompt) return;
+  setLoading(true);
+  document.getElementById('validationPanel').classList.add('hidden');
+  try {
+    const res = await fetch('/api/generate', {
+      method: 'POST',
+      headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({prompt}),
+    });
+    const data = await res.json();
+    if (data.error) throw new Error(data.error);
+    renderWorkflow(data.workflow, data.validation);
+  } catch (err) {
+    showValidationPanel([err.message], [], false);
+  } finally {
+    setLoading(false);
+  }
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+  document.getElementById('prompt').addEventListener('keydown', e => {
+    if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) generate();
+  });
+});
+
+function renderWorkflow(workflow, validation) {
+  currentWorkflow = workflow;
+
+  document.getElementById('workflowMeta').innerHTML = `
+    <div class="flex items-start justify-between gap-4">
+      <div>
+        <p class="font-semibold text-gray-900">${esc(workflow.workflow_name || 'Untitled')}</p>
+        <p class="text-xs text-gray-500 mt-0.5">${esc(workflow.description || '')}</p>
+      </div>
+      ${workflow.estimated_employees ? `<span class="badge bg-gray-100 text-gray-600">${workflow.estimated_employees} emp</span>` : ''}
+    </div>
+    <p class="text-xs text-gray-400 mt-2">${(workflow.flow||[]).length} steps</p>
+  `;
+
+  const container = document.getElementById('flowSteps');
+  container.innerHTML = '';
+  (workflow.flow||[]).forEach((step, idx) => {
+    const cat = step.category || 'ingestion';
+    const colors = CATEGORY_COLORS[cat] || CATEGORY_COLORS.ingestion;
+    const configEntries = Object.entries(step.config||{}).filter(([,v]) => v !== null && v !== '');
+    const card = document.createElement('div');
+    card.className = 'step-card';
+    card.style.animationDelay = `${idx*30}ms`;
+    card.innerHTML = `
+      ${idx > 0 ? '<div class="connector"></div>' : ''}
+      <div class="flex items-start gap-3 px-4 py-3 bg-white rounded-xl border-l-4 ${colors.border} border border-gray-100 shadow-sm">
+        <div class="flex-shrink-0 w-6 h-6 rounded-full ${colors.bg} ${colors.text} flex items-center justify-center text-xs font-bold mt-0.5">${idx+1}</div>
+        <div class="flex-1 min-w-0">
+          <div class="flex items-center gap-2 flex-wrap">
+            <span class="font-mono text-sm font-semibold text-gray-800">${esc(step.step)}</span>
+            <span class="badge ${colors.bg} ${colors.text}">${esc(cat)}</span>
           </div>
-          ${workflow.estimated_employees ? `<span class="text-xs bg-gray-100 text-gray-600 rounded-full px-3 py-1 whitespace-nowrap">${workflow.estimated_employees} employees</span>` : ''}
+          ${configEntries.length > 0 ? `
+            <div class="mt-1.5 flex flex-wrap gap-1.5">
+              ${configEntries.map(([k,v]) => `
+                <span class="badge bg-gray-100 text-gray-600">
+                  <span class="text-gray-400">${esc(k)}:</span> ${esc(String(v))}
+                </span>
+              `).join('')}
+            </div>` : ''}
         </div>
-        <div class="mt-3 flex items-center gap-2 text-xs text-gray-400">
-          <span>${(workflow.flow || []).length} steps</span>
+      </div>
+    `;
+    container.appendChild(card);
+  });
+
+  document.getElementById('jsonOutput').textContent = JSON.stringify(workflow, null, 2);
+  document.getElementById('emptyState').classList.add('hidden');
+  setView(currentView);
+  if (validation) showValidationPanel(validation.errors, validation.warnings, validation.valid);
+}
+
+function showValidationPanel(errors, warnings, valid) {
+  const panel = document.getElementById('validationPanel');
+  if (!errors.length && !warnings.length && valid) { panel.classList.add('hidden'); return; }
+  panel.classList.remove('hidden');
+  panel.className = `rounded-xl border p-3 text-xs space-y-1 ${valid ? 'bg-emerald-50 border-emerald-200' : 'bg-red-50 border-red-200'}`;
+  let html = `<p class="font-medium ${valid ? 'text-emerald-700' : 'text-red-700'}">${valid ? '✓ Valid' : `✗ ${errors.length} error(s)`}</p>`;
+  errors.forEach(e => { html += `<p class="text-red-600">⚠ ${esc(e)}</p>`; });
+  warnings.forEach(w => { html += `<p class="text-amber-600">⚡ ${esc(w)}</p>`; });
+  panel.innerHTML = html;
+}
+
+// ===========================================================================
+// Column mapper
+// ===========================================================================
+function handleDrop(e) {
+  e.preventDefault();
+  document.getElementById('dropZone').classList.remove('drag-over');
+  const file = e.dataTransfer.files[0];
+  if (file) uploadAndClassify(file);
+}
+
+function handleFileSelect(e) {
+  const file = e.target.files[0];
+  if (file) uploadAndClassify(file);
+}
+
+async function uploadAndClassify(file) {
+  setMappingLoading(true);
+  const formData = new FormData();
+  formData.append('file', file);
+  formData.append('provider_hint', document.getElementById('providerHint').value);
+  formData.append('review_threshold', '0.75');
+  try {
+    const res = await fetch('/api/classify-columns', {method:'POST', body: formData});
+    const data = await res.json();
+    if (data.error) throw new Error(data.error);
+    renderMappings(data, file.name);
+  } catch (err) {
+    alert('Column classification failed: ' + err.message);
+  } finally {
+    setMappingLoading(false);
+  }
+}
+
+async function loadColumnDemo() {
+  setMappingLoading(true);
+  try {
+    const res = await fetch('/api/classify-columns/demo');
+    const data = await res.json();
+    if (data.error) throw new Error(data.error);
+    renderMappings(data, 'adp_payroll_register.csv (demo)');
+  } catch (err) {
+    alert('Demo failed: ' + err.message);
+  } finally {
+    setMappingLoading(false);
+  }
+}
+
+function setMappingLoading(loading) {
+  const btn = document.getElementById('classifyDemoBtn');
+  btn.disabled = loading;
+  btn.textContent = loading ? 'Classifying…' : 'Run Demo (ADP headers)';
+}
+
+function renderMappings(data, filename) {
+  document.getElementById('mappingEmpty').classList.add('hidden');
+  document.getElementById('mappingResults').classList.remove('hidden');
+
+  const total = data.mappings.length;
+  const needsReview = data.mappings.filter(m => m.needs_review).length;
+  const highConf = data.mappings.filter(m => m.confidence >= 0.9).length;
+
+  document.getElementById('mappingMeta').innerHTML = `
+    <div class="flex flex-wrap gap-4 items-center">
+      <span class="font-medium text-gray-700">${esc(filename)}</span>
+      ${data.provider_detected ? `<span class="badge bg-indigo-100 text-indigo-700">Detected: ${esc(data.provider_detected.toUpperCase())}</span>` : ''}
+      <span class="badge bg-emerald-100 text-emerald-700">${highConf}/${total} high confidence</span>
+      ${needsReview > 0 ? `<span class="badge bg-amber-100 text-amber-700">${needsReview} need review</span>` : ''}
+      ${data.skipped_columns.length > 0 ? `<span class="badge bg-gray-100 text-gray-600">${data.skipped_columns.length} skipped</span>` : ''}
+    </div>
+    ${data.warnings.length > 0 ? `<div class="text-amber-600 mt-1">${data.warnings.map(w => esc(w)).join('; ')}</div>` : ''}
+  `;
+
+  const tbody = document.getElementById('mappingTable');
+  tbody.innerHTML = '';
+
+  data.mappings.forEach(m => {
+    const pct = Math.round(m.confidence * 100);
+    const confColor = pct >= 90 ? 'bg-emerald-500' : pct >= 75 ? 'bg-amber-400' : 'bg-red-400';
+    const rowBg = m.needs_review ? 'bg-amber-50' : '';
+    const fieldMeta = canonicalFields[m.canonical_field] || {};
+    const tr = document.createElement('tr');
+    tr.className = `${rowBg} hover:bg-gray-50`;
+    tr.innerHTML = `
+      <td class="px-3 py-2 font-mono font-medium text-gray-800">${esc(m.source_column)}</td>
+      <td class="px-3 py-2">
+        ${m.canonical_field
+          ? `<span class="font-mono text-indigo-700">${esc(m.canonical_field)}</span>
+             <p class="text-gray-400 text-xs truncate max-w-[160px]" title="${esc(m.reasoning)}">${esc(m.reasoning)}</p>`
+          : `<span class="text-gray-400 italic">unmapped</span>`}
+      </td>
+      <td class="px-3 py-2">
+        ${fieldMeta.category ? `<span class="badge bg-gray-100 text-gray-600">${esc(fieldMeta.category)}</span>` : ''}
+      </td>
+      <td class="px-3 py-2">
+        <div class="flex items-center gap-2">
+          <div class="flex-1 h-1.5 bg-gray-200 rounded-full overflow-hidden w-16">
+            <div class="h-full ${confColor} confidence-bar rounded-full" style="width:${pct}%"></div>
+          </div>
+          <span class="${m.needs_review ? 'text-amber-600 font-medium' : 'text-gray-500'}">${pct}%</span>
+          ${m.needs_review ? '<span title="Needs review" class="text-amber-500">⚠</span>' : ''}
         </div>
-      `;
+      </td>
+      <td class="px-3 py-2">
+        <input type="text" placeholder="override…"
+          class="text-xs border border-gray-200 rounded px-2 py-1 w-28 focus:outline-none focus:ring-1 focus:ring-indigo-400"
+          value="${esc(m.canonical_field || '')}"/>
+      </td>
+    `;
+    tbody.appendChild(tr);
+  });
+}
 
-      // Steps
-      const container = document.getElementById('flowSteps');
-      container.innerHTML = '';
-      (workflow.flow || []).forEach((step, idx) => {
-        const cat = step.category || 'ingestion';
-        const colors = CATEGORY_COLORS[cat] || CATEGORY_COLORS.ingestion;
-        const configEntries = Object.entries(step.config || {}).filter(([,v]) => v !== null && v !== '');
+// ===========================================================================
+// Journal entries
+// ===========================================================================
+async function loadJournalDemo() {
+  document.getElementById('jeEmpty').classList.add('hidden');
+  document.getElementById('jeResults').innerHTML = '<p class="text-sm text-gray-400">Loading…</p>';
+  document.getElementById('jeResults').classList.remove('hidden');
+  try {
+    const res = await fetch('/api/journal-entries/demo');
+    const data = await res.json();
+    if (data.error) throw new Error(data.error);
+    renderJournalEntries(data);
+  } catch(err) {
+    document.getElementById('jeResults').innerHTML = `<p class="text-red-600 text-sm">Error: ${esc(err.message)}</p>`;
+  }
+}
 
-        const card = document.createElement('div');
-        card.className = `step-card`;
-        card.style.animationDelay = `${idx * 40}ms`;
+function renderJournalEntries(data) {
+  const container = document.getElementById('jeResults');
+  container.innerHTML = '';
 
-        card.innerHTML = `
-          ${idx > 0 ? '<div class="connector"></div>' : ''}
-          <div class="flex items-start gap-3 p-4 bg-white rounded-xl border ${colors.border} shadow-sm category-${cat} step-accent">
-            <div class="flex-shrink-0 w-6 h-6 rounded-full ${colors.bg} ${colors.text} flex items-center justify-center text-xs font-bold">${idx + 1}</div>
-            <div class="flex-1 min-w-0">
-              <div class="flex items-center gap-2 flex-wrap">
-                <span class="font-mono text-sm font-semibold text-gray-800">${escHtml(step.step)}</span>
-                <span class="text-xs px-2 py-0.5 rounded-full ${colors.bg} ${colors.text}">${escHtml(cat)}</span>
-              </div>
-              ${step.description ? `<p class="text-xs text-gray-500 mt-1">${escHtml(step.description)}</p>` : ''}
-              ${configEntries.length > 0 ? `
-                <div class="mt-2 flex flex-wrap gap-2">
-                  ${configEntries.map(([k, v]) => `
-                    <span class="text-xs bg-gray-100 text-gray-600 rounded px-2 py-0.5">
-                      <span class="text-gray-400">${escHtml(k)}:</span> ${escHtml(String(v))}
-                    </span>
-                  `).join('')}
-                </div>` : ''}
+  // Summary bar
+  const summaryDiv = document.createElement('div');
+  summaryDiv.className = 'flex flex-wrap gap-4 bg-white border border-gray-200 rounded-xl p-4 text-sm';
+  summaryDiv.innerHTML = `
+    <div><span class="text-gray-400 text-xs">Entries</span><p class="font-semibold">${data.entries.length}</p></div>
+    <div><span class="text-gray-400 text-xs">Total Debits</span><p class="font-semibold text-emerald-700">${fmt(data.total_debits)}</p></div>
+    <div><span class="text-gray-400 text-xs">Balanced</span><p class="font-semibold ${data.balanced ? 'text-emerald-600' : 'text-red-600'}">${data.balanced ? '✓ Yes' : '✗ No'}</p></div>
+  `;
+  container.appendChild(summaryDiv);
+
+  // Render each entry
+  const typeOrder = ['payroll','accrual','reversal','tax_deposit','benefits'];
+  typeOrder.forEach(type => {
+    const entries = (data.by_type[type] || []);
+    entries.forEach(entry => {
+      const colors = ENTRY_TYPE_COLORS[type] || ENTRY_TYPE_COLORS.payroll;
+      const div = document.createElement('div');
+      div.className = `bg-white border ${colors.border} rounded-xl overflow-hidden shadow-sm`;
+      div.innerHTML = `
+        <div class="flex items-center justify-between px-4 py-3 ${colors.bg}">
+          <div>
+            <span class="font-mono font-semibold text-sm text-gray-800">${esc(entry.reference)}</span>
+            <span class="ml-2 badge ${colors.bg} ${colors.text} border ${colors.border}">${esc(entry.entry_type)}</span>
+            ${entry.is_reversing ? '<span class="ml-1 badge bg-pink-100 text-pink-700 border border-pink-200">reversing</span>' : ''}
+          </div>
+          <div class="text-right text-xs text-gray-500">
+            <div>${esc(entry.entry_date)}</div>
+            <div class="${entry.balanced ? 'text-emerald-600' : 'text-red-600'} font-medium">
+              ${entry.balanced ? '✓ balanced' : '✗ out of balance'}
             </div>
           </div>
-        `;
-        container.appendChild(card);
-      });
-
-      // JSON
-      document.getElementById('jsonOutput').textContent = JSON.stringify(workflow, null, 2);
-
-      // Show panels
-      document.getElementById('emptyState').classList.add('hidden');
-      document.getElementById('flowView').classList.toggle('hidden', currentView !== 'flow');
-      document.getElementById('jsonView').classList.toggle('hidden', currentView !== 'json');
-
-      // Validation
-      renderValidation(validation);
-    }
-
-    function renderValidation(validation) {
-      const panel = document.getElementById('validationPanel');
-      if (!validation) { panel.classList.add('hidden'); return; }
-
-      panel.classList.remove('hidden');
-      const isValid = validation.valid;
-      panel.className = `rounded-xl border p-4 text-sm space-y-2 ${isValid ? 'bg-emerald-50 border-emerald-200' : 'bg-red-50 border-red-200'}`;
-
-      let html = `<p class="font-medium ${isValid ? 'text-emerald-700' : 'text-red-700'}">
-        ${isValid ? '✓ Workflow is valid' : `✗ ${validation.errors.length} validation error(s)`}
-      </p>`;
-      validation.errors.forEach(e => { html += `<p class="text-red-600 text-xs">⚠ ${escHtml(e)}</p>`; });
-      validation.warnings.forEach(w => { html += `<p class="text-amber-600 text-xs">⚡ ${escHtml(w)}</p>`; });
-      panel.innerHTML = html;
-    }
-
-    function escHtml(str) {
-      return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
-    }
-
-    function setLoading(loading) {
-      const btn = document.getElementById('generateBtn');
-      const icon = document.getElementById('btnIcon');
-      const text = document.getElementById('btnText');
-      btn.disabled = loading;
-      if (loading) {
-        btn.classList.add('opacity-75', 'cursor-not-allowed');
-        icon.innerHTML = '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />';
-        text.textContent = 'Generating…';
-      } else {
-        btn.classList.remove('opacity-75', 'cursor-not-allowed');
-        icon.innerHTML = '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z" />';
-        text.textContent = 'Generate Workflow';
-      }
-    }
-
-    async function generate() {
-      const prompt = document.getElementById('prompt').value.trim();
-      if (!prompt) return;
-
-      setLoading(true);
-      document.getElementById('validationPanel').classList.add('hidden');
-
-      try {
-        const res = await fetch('/api/generate', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ prompt }),
-        });
-        const data = await res.json();
-        if (data.error) throw new Error(data.error);
-        renderWorkflow(data.workflow, data.validation);
-      } catch (err) {
-        const panel = document.getElementById('validationPanel');
-        panel.className = 'rounded-xl border p-4 text-sm bg-red-50 border-red-200';
-        panel.innerHTML = `<p class="text-red-600 font-medium">Error: ${escHtml(err.message)}</p>`;
-        panel.classList.remove('hidden');
-      } finally {
-        setLoading(false);
-      }
-    }
-
-    document.getElementById('generateBtn').addEventListener('click', generate);
-    document.getElementById('prompt').addEventListener('keydown', e => {
-      if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) generate();
+        </div>
+        <p class="px-4 py-2 text-xs text-gray-500 border-b border-gray-100">${esc(entry.description)}</p>
+        <div class="overflow-x-auto">
+          <table class="w-full text-xs">
+            <thead class="bg-gray-50 text-gray-400 uppercase tracking-wider">
+              <tr>
+                <th class="px-4 py-2 text-left">Account</th>
+                <th class="px-4 py-2 text-left">Description</th>
+                <th class="px-4 py-2 text-left">Dept</th>
+                <th class="px-4 py-2 text-right">Debit</th>
+                <th class="px-4 py-2 text-right">Credit</th>
+              </tr>
+            </thead>
+            <tbody class="divide-y divide-gray-50">
+              ${entry.lines.map(line => `
+                <tr class="hover:bg-gray-50">
+                  <td class="px-4 py-2 font-mono text-gray-700">${esc(line.account)}</td>
+                  <td class="px-4 py-2 text-gray-600 max-w-xs truncate" title="${esc(line.line_description || '')}">${esc(line.account_name)}</td>
+                  <td class="px-4 py-2 text-gray-400">${esc(line.department || '')}</td>
+                  <td class="px-4 py-2 text-right ${line.debit ? 'text-gray-800 font-medium' : 'text-gray-300'}">${line.debit ? fmt(line.debit) : ''}</td>
+                  <td class="px-4 py-2 text-right ${line.credit ? 'text-gray-800 font-medium' : 'text-gray-300'}">${line.credit ? fmt(line.credit) : ''}</td>
+                </tr>
+              `).join('')}
+            </tbody>
+            <tfoot class="bg-gray-50 font-semibold text-gray-700">
+              <tr>
+                <td colspan="3" class="px-4 py-2">Total</td>
+                <td class="px-4 py-2 text-right">${fmt(entry.total_debits)}</td>
+                <td class="px-4 py-2 text-right">${fmt(entry.total_credits)}</td>
+              </tr>
+            </tfoot>
+          </table>
+        </div>
+      `;
+      container.appendChild(div);
     });
+  });
+}
 
-    // Load examples
-    fetch('/api/examples').then(r => r.json()).then(examples => {
-      const container = document.getElementById('examples');
-      examples.forEach(ex => {
-        const btn = document.createElement('button');
-        btn.className = 'w-full text-left text-sm text-indigo-600 hover:text-indigo-800 hover:bg-indigo-50 rounded-lg px-3 py-2 border border-indigo-100 transition-colors';
-        btn.textContent = ex.prompt;
-        btn.addEventListener('click', () => {
-          document.getElementById('prompt').value = ex.prompt;
-        });
-        container.appendChild(btn);
-      });
-    }).catch(() => {});
+// ===========================================================================
+// Utilities
+// ===========================================================================
+function esc(str) {
+  return String(str||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
 
-    // Enrich flow steps with component metadata
-    async function enrichWithComponents() {
-      const res = await fetch('/api/components');
-      window.componentRegistry = {};
-      const comps = await res.json();
-      comps.forEach(c => { window.componentRegistry[c.name] = c; });
-    }
-    enrichWithComponents();
+function fmt(n) {
+  return '$' + Number(n).toLocaleString('en-US', {minimumFractionDigits:2, maximumFractionDigits:2});
+}
 
-    // Patch renderWorkflow to add descriptions from registry
-    const _orig = renderWorkflow;
-  </script>
+// ===========================================================================
+// Init: load examples, canonical fields, sample files
+// ===========================================================================
+fetch('/api/examples').then(r=>r.json()).then(examples => {
+  const container = document.getElementById('examples');
+  examples.slice(0, 5).forEach(ex => {
+    if (!ex.prompt) return;
+    const btn = document.createElement('button');
+    btn.className = 'w-full text-left text-xs text-indigo-600 hover:text-indigo-800 hover:bg-indigo-50 rounded-lg px-3 py-2 border border-indigo-100 transition-colors truncate';
+    btn.title = ex.prompt;
+    btn.textContent = ex.prompt;
+    btn.onclick = () => { document.getElementById('prompt').value = ex.prompt; };
+    container.appendChild(btn);
+  });
+}).catch(()=>{});
+
+fetch('/api/canonical-fields').then(r=>r.json()).then(fields => {
+  fields.forEach(f => { canonicalFields[f.field] = f; });
+}).catch(()=>{});
+
+fetch('/api/sample-files').then(r=>r.json()).then(files => {
+  const container = document.getElementById('sampleFiles');
+  files.forEach(f => {
+    const btn = document.createElement('button');
+    btn.className = 'w-full text-left text-xs text-gray-600 hover:text-indigo-700 hover:bg-indigo-50 rounded-lg px-3 py-1.5 border border-gray-200 transition-colors';
+    btn.textContent = '📄 ' + f.name;
+    btn.onclick = async () => {
+      btn.textContent = '⏳ ' + f.name;
+      btn.disabled = true;
+      try {
+        // Fetch the sample file as a Blob and upload it
+        const csvRes = await fetch('/' + f.path);
+        const blob = await csvRes.blob();
+        const file = new File([blob], f.name, {type:'text/csv'});
+        await uploadAndClassify(file);
+      } catch(err) {
+        alert('Failed: ' + err.message);
+      } finally {
+        btn.textContent = '📄 ' + f.name;
+        btn.disabled = false;
+      }
+    };
+    container.appendChild(btn);
+  });
+}).catch(()=>{});
+</script>
 </body>
 </html>

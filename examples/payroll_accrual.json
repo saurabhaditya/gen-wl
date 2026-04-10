@@ -1,0 +1,19 @@
+{
+  "prompt": "Calculate payroll accrual for the 5 working days between pay date and month end",
+  "workflow_name": "Period-End Payroll Accrual",
+  "description": "Generate accrual and reversing journal entries for wages earned but not paid at period end.",
+  "estimated_employees": null,
+  "flow": [
+    {"step": "read_spreadsheet", "config": {}},
+    {"step": "classify_columns", "config": {"review_threshold": 0.75}},
+    {"step": "normalize_rows", "config": {}},
+    {"step": "validate_payroll_data", "config": {}},
+    {"step": "calculate_gross_pay", "config": {}},
+    {"step": "calculate_deductions", "config": {}},
+    {"step": "calculate_taxes", "config": {"federal": true}},
+    {"step": "calculate_net_pay", "config": {}},
+    {"step": "generate_journal_entries", "config": {"accrual_basis": true, "accrual_days": 5, "work_days_in_period": 10}},
+    {"step": "post_to_gl", "config": {"gl_system": "netsuite", "auto_reconcile": false}},
+    {"step": "send_summary", "config": {"include_breakdown": true}}
+  ]
+}
