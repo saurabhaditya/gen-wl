@@ -25,36 +25,52 @@ from typing import Any
 # ---------------------------------------------------------------------------
 
 DEFAULT_GL_ACCOUNTS = {
+    # -----------------------------------------------------------------------
     # Expense accounts (Debit on payroll run)
-    "wages_regular":        {"number": "6100", "name": "Wages & Salaries — Regular",       "type": "expense"},
-    "wages_overtime":       {"number": "6110", "name": "Wages & Salaries — Overtime",      "type": "expense"},
-    "wages_bonus":          {"number": "6120", "name": "Wages & Salaries — Bonus/Commission","type": "expense"},
-    "wages_pto":            {"number": "6130", "name": "Wages & Salaries — PTO/Holiday",   "type": "expense"},
-    "payroll_tax_exp":      {"number": "6200", "name": "Payroll Tax Expense",               "type": "expense"},
-    "benefits_exp":         {"number": "6300", "name": "Employee Benefits Expense",         "type": "expense"},
-    "workers_comp_exp":     {"number": "6310", "name": "Workers Compensation Expense",      "type": "expense"},
-    "401k_er_exp":          {"number": "6320", "name": "401(k) Employer Match Expense",     "type": "expense"},
-    "health_er_exp":        {"number": "6330", "name": "Health Insurance Employer Expense", "type": "expense"},
+    # 5000-range wages / 5100-range payroll taxes / 5200-range benefits
+    # (industry standard per QuickBooks, mid-market ERP, accounting textbooks)
+    # -----------------------------------------------------------------------
+    "wages_regular":        {"number": "5010", "name": "Wages & Salaries — Regular",        "type": "expense"},
+    "wages_overtime":       {"number": "5011", "name": "Wages & Salaries — Overtime",       "type": "expense"},
+    "wages_bonus":          {"number": "5012", "name": "Wages & Salaries — Bonus/Commission","type": "expense"},
+    "wages_pto":            {"number": "5013", "name": "Wages & Salaries — PTO/Holiday",    "type": "expense"},
+    "payroll_tax_exp":      {"number": "5100", "name": "Payroll Tax Expense",                "type": "expense"},
+    "er_ss_exp":            {"number": "5110", "name": "Employer Social Security Expense",   "type": "expense"},
+    "er_medicare_exp":      {"number": "5111", "name": "Employer Medicare Expense",          "type": "expense"},
+    "futa_exp":             {"number": "5120", "name": "FUTA Expense",                       "type": "expense"},
+    "suta_exp":             {"number": "5121", "name": "SUTA Expense",                       "type": "expense"},
+    "benefits_exp":         {"number": "5200", "name": "Employee Benefits Expense",          "type": "expense"},
+    "health_er_exp":        {"number": "5210", "name": "Health Insurance Employer Expense",  "type": "expense"},
+    "401k_er_exp":          {"number": "5220", "name": "401(k) Employer Match Expense",      "type": "expense"},
+    "workers_comp_exp":     {"number": "5230", "name": "Workers Compensation Expense",       "type": "expense"},
 
+    # -----------------------------------------------------------------------
+    # Asset accounts
+    # -----------------------------------------------------------------------
+    "cash":                 {"number": "1000", "name": "Cash / Payroll Checking Account",    "type": "asset"},
+    "payroll_clearing":     {"number": "1010", "name": "Payroll Clearing Account",           "type": "asset"},
+
+    # -----------------------------------------------------------------------
     # Liability accounts (Credit on payroll run)
-    "cash":                 {"number": "1010", "name": "Cash / Checking Account",           "type": "asset"},
-    "wages_payable":        {"number": "2100", "name": "Wages Payable",                     "type": "liability"},
-    "federal_it_payable":   {"number": "2200", "name": "Federal Income Tax Payable",        "type": "liability"},
-    "state_it_payable":     {"number": "2210", "name": "State Income Tax Payable",          "type": "liability"},
-    "local_it_payable":     {"number": "2220", "name": "Local Income Tax Payable",          "type": "liability"},
-    "ss_payable":           {"number": "2230", "name": "Social Security Tax Payable",       "type": "liability"},
-    "medicare_payable":     {"number": "2240", "name": "Medicare Tax Payable",              "type": "liability"},
-    "sdi_payable":          {"number": "2250", "name": "SDI / SUI Employee Payable",        "type": "liability"},
-    "futa_payable":         {"number": "2260", "name": "FUTA Tax Payable",                  "type": "liability"},
-    "suta_payable":         {"number": "2270", "name": "SUTA Tax Payable",                  "type": "liability"},
-    "401k_ee_payable":      {"number": "2300", "name": "401(k) Employee Contribution Payable","type": "liability"},
-    "401k_er_payable":      {"number": "2310", "name": "401(k) Employer Match Payable",     "type": "liability"},
-    "health_ee_payable":    {"number": "2320", "name": "Health Insurance Premium Payable",  "type": "liability"},
-    "health_er_payable":    {"number": "2325", "name": "Health Ins Employer Payable",       "type": "liability"},
-    "garnishment_payable":  {"number": "2330", "name": "Garnishment Payable",               "type": "liability"},
-    "hsa_payable":          {"number": "2340", "name": "HSA Contribution Payable",          "type": "liability"},
-    "accrued_wages":        {"number": "2110", "name": "Accrued Wages",                     "type": "liability"},
-    "accrued_payroll_taxes":{"number": "2260", "name": "Accrued Payroll Taxes",             "type": "liability"},
+    # 2100-range payroll liabilities (matches IRS Form 941 line structure)
+    # -----------------------------------------------------------------------
+    "wages_payable":        {"number": "2100", "name": "Payroll Liabilities",               "type": "liability"},
+    "federal_it_payable":   {"number": "2110", "name": "Federal Income Tax Payable",         "type": "liability"},  # 941 Line 3
+    "ss_payable":           {"number": "2115", "name": "Social Security Tax Payable",        "type": "liability"},  # 941 Line 5a (EE+ER combined)
+    "medicare_payable":     {"number": "2116", "name": "Medicare Tax Payable",               "type": "liability"},  # 941 Line 5c (EE+ER combined)
+    "state_it_payable":     {"number": "2120", "name": "State Income Tax Payable",           "type": "liability"},
+    "local_it_payable":     {"number": "2125", "name": "Local / City Income Tax Payable",    "type": "liability"},
+    "futa_payable":         {"number": "2130", "name": "FUTA Tax Payable",                   "type": "liability"},  # Form 940
+    "suta_payable":         {"number": "2135", "name": "SUTA / State Unemployment Payable",  "type": "liability"},
+    "401k_ee_payable":      {"number": "2140", "name": "401(k) / Retirement Contributions Payable","type": "liability"},
+    "401k_er_payable":      {"number": "2141", "name": "401(k) Employer Match Payable",      "type": "liability"},
+    "health_ee_payable":    {"number": "2145", "name": "Health Insurance Premiums Payable",  "type": "liability"},
+    "health_er_payable":    {"number": "2146", "name": "Health Insurance Employer Payable",  "type": "liability"},
+    "hsa_payable":          {"number": "2160", "name": "FSA / HSA Contributions Payable",    "type": "liability"},
+    "garnishment_payable":  {"number": "2170", "name": "Garnishments Payable",               "type": "liability"},
+    "sdi_payable":          {"number": "2180", "name": "SDI / Disability Insurance Payable", "type": "liability"},
+    "accrued_wages":        {"number": "2200", "name": "Accrued Wages Payable",              "type": "liability"},  # period-end accrual
+    "accrued_payroll_taxes":{"number": "2210", "name": "Accrued Payroll Taxes Payable",      "type": "liability"},
 }
 
 
@@ -285,10 +301,12 @@ def generate_payroll_je(
         debit("wages_bonus", summary.gross_bonus, "Bonus / commission")
         debit("wages_pto", summary.gross_pto, "PTO / holiday pay")
 
-    # --- Employer payroll tax expense debits ---
-    total_er_taxes = (summary.tax_ss_er + summary.tax_medicare_er +
-                      summary.tax_futa + summary.tax_suta_er + summary.tax_workers_comp)
-    debit("payroll_tax_exp", total_er_taxes, "Employer payroll taxes (FICA ER + FUTA + SUTA)")
+    # --- Employer payroll tax expense debits (itemized per industry standard) ---
+    debit("er_ss_exp",      summary.tax_ss_er,         "Employer Social Security tax (6.2%)")
+    debit("er_medicare_exp",summary.tax_medicare_er,   "Employer Medicare tax (1.45%)")
+    debit("futa_exp",       summary.tax_futa,          "FUTA expense")
+    debit("suta_exp",       summary.tax_suta_er,       "SUTA expense")
+    debit("workers_comp_exp",summary.tax_workers_comp, "Workers compensation expense")
 
     # --- Employer benefit contribution expense debits ---
     total_er_benefits = summary.contrib_401k_er + summary.contrib_health_er + summary.contrib_hsa_er
@@ -301,17 +319,18 @@ def generate_payroll_je(
     credit("cash", summary.net_pay, "Net pay disbursed")
 
     # --- Credits: employee tax liabilities ---
-    credit("federal_it_payable", summary.tax_federal_it, "Federal income tax withheld")
+    # SS (2115) and Medicare (2116) hold both EE+ER combined — matches 941 Lines 5a/5c
+    credit("federal_it_payable", summary.tax_federal_it, "Federal income tax withheld (941 Line 3)")
     credit("state_it_payable", summary.tax_state_it, "State income tax withheld")
     credit("local_it_payable", summary.tax_local_it, "Local income tax withheld")
     credit("ss_payable",
            summary.tax_ss_ee + summary.tax_ss_er,
-           "Social Security tax (EE + ER)")
+           "Social Security tax payable — EE+ER (941 Line 5a × 12.4%)")
     credit("medicare_payable",
            summary.tax_medicare_ee + summary.tax_medicare_er,
-           "Medicare tax (EE + ER)")
-    credit("sdi_payable", summary.tax_sdi_ee, "SDI withheld")
-    credit("futa_payable", summary.tax_futa, "FUTA payable")
+           "Medicare tax payable — EE+ER (941 Line 5c × 2.9%)")
+    credit("sdi_payable", summary.tax_sdi_ee, "SDI / disability withheld")
+    credit("futa_payable", summary.tax_futa, "FUTA payable (Form 940)")
     credit("suta_payable", summary.tax_suta_er, "SUTA payable")
 
     # --- Credits: employee deduction liabilities ---
