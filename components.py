@@ -531,6 +531,50 @@ register(Component(
 ))
 
 register(Component(
+    name="calculate_retro_pay",
+    description="Calculate retroactive pay adjustments for prior-period corrections (rate changes, missed hours, classification fixes).",
+    category="calculation",
+    required_inputs=["validated_rows"],
+    outputs=["retro_pay_records"],
+    config_schema={
+        "effective_date": {"type": "string", "description": "Date the corrected rate/hours take effect"},
+        "periods_to_recalculate": {"type": "integer", "default": 1, "description": "Number of prior pay periods to retroactively recalculate"},
+        "reason": {"type": "string", "enum": ["rate_change", "missed_hours", "reclassification", "bonus_true_up"]},
+    },
+    tags=["calculation", "retro", "correction"],
+))
+
+register(Component(
+    name="generate_nacha_file",
+    description="Generate a NACHA-formatted ACH file for direct deposit submission to the originating bank.",
+    category="execution",
+    required_inputs=["net_pay_after_garnishments", "payroll_run_id"],
+    outputs=["nacha_file", "nacha_batch_summary"],
+    config_schema={
+        "company_id": {"type": "string", "description": "10-digit ACH company ID"},
+        "odfi_routing": {"type": "string", "description": "Originating Depository Financial Institution routing number"},
+        "effective_entry_date": {"type": "string", "description": "ISO date for when deposits should settle"},
+        "sec_code": {"type": "string", "default": "PPD", "enum": ["PPD", "CCD"], "description": "ACH Standard Entry Class code"},
+    },
+    tags=["execution", "ach", "nacha", "banking"],
+))
+
+register(Component(
+    name="cancel_payroll_run",
+    description="Cancel or reverse a submitted payroll run. Voids all payments and reverses journal entries.",
+    category="execution",
+    required_inputs=["payroll_run_id", "approval_status"],
+    outputs=["cancellation_confirmation", "reversal_journal_entries"],
+    config_schema={
+        "reason": {"type": "string", "description": "Reason for cancellation"},
+        "void_checks": {"type": "boolean", "default": True},
+        "reverse_ach": {"type": "boolean", "default": True, "description": "Initiate ACH reversal if deposits already sent"},
+        "notify_employees": {"type": "boolean", "default": True},
+    },
+    tags=["execution", "cancellation", "reversal"],
+))
+
+register(Component(
     name="remit_benefits_contributions",
     description="Transmit employee and employer benefit contributions to insurance carriers, 401(k) custodians, HSA administrators.",
     category="execution",
