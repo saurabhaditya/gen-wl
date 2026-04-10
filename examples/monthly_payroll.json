@@ -1,0 +1,22 @@
+{
+  "prompt": "Process monthly payroll for 50 employees, validate hours, calculate taxes, get manager approval, then generate journal entries and send summary",
+  "workflow_name": "Monthly Payroll Run",
+  "description": "Standard end-to-end monthly payroll with validation, tax calculation, approval gate, and GL posting.",
+  "estimated_employees": 50,
+  "flow": [
+    {"step": "read_spreadsheet", "config": {"sheet_name": "Hours"}},
+    {"step": "map_columns", "config": {"auto_detect": true}},
+    {"step": "normalize_rows", "config": {}},
+    {"step": "validate_payroll_data", "config": {"required_fields": ["employee_id", "name", "hours_worked", "pay_rate"]}},
+    {"step": "check_overtime_rules", "config": {"weekly_threshold": 40}},
+    {"step": "calculate_gross_pay", "config": {}},
+    {"step": "calculate_deductions", "config": {"deduction_types": ["401k", "health_insurance"]}},
+    {"step": "calculate_taxes", "config": {"federal": true, "state": "CA"}},
+    {"step": "calculate_net_pay", "config": {}},
+    {"step": "manager_review", "config": {"review_overtime_only": true}},
+    {"step": "human_approval", "config": {"timeout_hours": 24}},
+    {"step": "run_payroll", "config": {}},
+    {"step": "generate_journal_entries", "config": {"accrual_basis": true}},
+    {"step": "send_summary", "config": {"include_breakdown": true}}
+  ]
+}

@@ -1,0 +1,17 @@
+{
+  "prompt": "Year-end payroll close: reconcile all payroll taxes for the year, generate W-2s for all employees, prepare Form 941 for Q4, file state returns, distribute W-2s electronically, and archive everything",
+  "workflow_name": "Year-End Payroll Close & W-2 Filing",
+  "description": "Annual close workflow: tax reconciliation, W-2 generation, 941/state filings, and employee distribution.",
+  "estimated_employees": null,
+  "flow": [
+    {"step": "reconcile_payroll_taxes", "config": {"tolerance_amount": 0.01}},
+    {"step": "generate_form_941", "config": {"quarter": "Q4"}},
+    {"step": "generate_form_940", "config": {}},
+    {"step": "file_state_tax_returns", "config": {"filing_frequency": "annual"}},
+    {"step": "generate_w2s", "config": {"include_box12_codes": true, "electronic_filing": true}},
+    {"step": "distribute_w2s", "config": {"delivery_method": "portal", "consent_required": true}},
+    {"step": "generate_941_worksheet", "config": {}},
+    {"step": "human_approval", "config": {"timeout_hours": 72}},
+    {"step": "archive_records", "config": {"retention_years": 7, "encrypt": true}}
+  ]
+}

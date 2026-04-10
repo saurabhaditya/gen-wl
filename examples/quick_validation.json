@@ -1,0 +1,20 @@
+{
+  "prompt": "Validate and preview payroll data before running — check for errors, flag overtime, and get manager sign-off, but don't process payments yet",
+  "workflow_name": "Payroll Validation & Preview",
+  "description": "Dry-run validation workflow to review payroll data and get approvals without executing payments.",
+  "estimated_employees": null,
+  "flow": [
+    {"step": "read_spreadsheet", "config": {}},
+    {"step": "map_columns", "config": {"auto_detect": true}},
+    {"step": "normalize_rows", "config": {}},
+    {"step": "validate_payroll_data", "config": {"strict_mode": false}},
+    {"step": "validate_compliance", "config": {"jurisdiction": "federal"}},
+    {"step": "check_overtime_rules", "config": {"weekly_threshold": 40}},
+    {"step": "calculate_gross_pay", "config": {}},
+    {"step": "calculate_deductions", "config": {}},
+    {"step": "calculate_taxes", "config": {"federal": true}},
+    {"step": "calculate_net_pay", "config": {}},
+    {"step": "manager_review", "config": {"review_overtime_only": false}},
+    {"step": "send_summary", "config": {"include_breakdown": true, "format": "email"}}
+  ]
+}

@@ -1,0 +1,27 @@
+{
+  "prompt": "Run full payroll for 200 employees: read from Excel, validate compliance, calculate all taxes for New York, process direct deposits, post to NetSuite GL, generate pay stubs, and archive everything",
+  "workflow_name": "Full Payroll with GL Posting",
+  "description": "Complete payroll run with direct deposit, NetSuite GL posting, pay stub generation, and archival.",
+  "estimated_employees": 200,
+  "flow": [
+    {"step": "error_handling", "config": {"halt_on_error": true, "max_errors": 0}},
+    {"step": "read_spreadsheet", "config": {"sheet_name": "Payroll", "header_row": 0}},
+    {"step": "map_columns", "config": {"auto_detect": true}},
+    {"step": "normalize_rows", "config": {"currency": "USD"}},
+    {"step": "validate_payroll_data", "config": {"strict_mode": true}},
+    {"step": "validate_compliance", "config": {"jurisdiction": "NY"}},
+    {"step": "check_overtime_rules", "config": {"weekly_threshold": 40}},
+    {"step": "calculate_gross_pay", "config": {}},
+    {"step": "calculate_deductions", "config": {"deduction_types": ["401k", "health_insurance", "fsa"]}},
+    {"step": "calculate_taxes", "config": {"federal": true, "state": "NY", "local": true}},
+    {"step": "calculate_net_pay", "config": {}},
+    {"step": "human_approval", "config": {"approval_threshold": 500000, "timeout_hours": 48}},
+    {"step": "run_payroll", "config": {"payroll_system": "workday"}},
+    {"step": "process_direct_deposit", "config": {"batch_size": 200}},
+    {"step": "generate_journal_entries", "config": {"cost_centers": true, "accrual_basis": true}},
+    {"step": "post_to_gl", "config": {"gl_system": "netsuite"}},
+    {"step": "generate_pay_stubs", "config": {"include_ytd": true}},
+    {"step": "send_summary", "config": {"include_breakdown": true}},
+    {"step": "archive_records", "config": {"retention_years": 7, "encrypt": true}}
+  ]
+}
